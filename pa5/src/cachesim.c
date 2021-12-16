@@ -3,8 +3,7 @@
 #include <string.h>
 #include <ctype.h>
 
-/*data that is held in the sets
-	linked lists are used*/
+
 struct node {
 	int num;
 	long int tag;
@@ -12,13 +11,13 @@ struct node {
 	struct node * prev;
 };
 
-/*method to create a node to store a memory address within a set*/
-struct node * createNode (int number, long int t, struct node *n, struct node *p) {
+// creates nodes
+struct node * createNode (int x, long int t, struct node *n, struct node *p) {
 
 	struct node * ptr = (struct node *)malloc(sizeof(struct node));
 	if (!ptr) return NULL;
 
-	ptr->num = number;
+	ptr->num = x;
 	ptr->tag = t;
 	ptr->next = n;
 	ptr->prev = p;
@@ -27,46 +26,53 @@ struct node * createNode (int number, long int t, struct node *n, struct node *p
 
 }
 
-/*function that takes a number and then returns its base 2. Returns -1 if not a power of 2
-	used to check cache and block size*/
-int logTwo (int num) {
+//free nodes
+void freeNode(struct node * ptr) {
+
+
+	struct node * prev = ptr;
+
+	/*go to end of list*/
+	while(ptr!=NULL) {
+		prev = ptr;
+		ptr=ptr->next;
+	}
+
+	/*free the list backwards, so not too much in stack*/
+	ptr = prev;
+	prev = ptr->prev;
+
+	while (ptr!=NULL) {
+		free(ptr);
+		ptr = prev;
+		if (ptr!=NULL) {
+			prev = ptr->prev;
+		}
+	}
+
+}
+
+//frees cache
+void freedom(struct node ** cache, int size) {
+
+	if (cache==NULL) return;
 
 	int i=0;
 
-	while (num>1) {
-		if (num%2!=0) return -1;
-		num = num/2;
-		i++;
+	for (i=0; i<size; i++) {
+		freeNode(cache[i]);
 	}
 
+	free(cache);
 
-	return i;
+
 }
 
 
-/*function that converts a string of a decimal number into an int
-	used for the arguments of cache size and block size*/
-int toString (char * string) {
-
-	int i =0, j=0;
-	int result =0;
-	for (i=0; string[i]!='\0'; i++) {
-	}
-
-	for (j=0; j<i; j++) {
-		result = result * 10;
-		result +=  (int)(string[j]) - 48;
-	}
-
-	return result;
-
-}
-
-/*method to check if the memory address is already in the cahce.
-	If it is it returns 0;
-	If it is not, it then loads that node into the cache with that memory address, returns 1;
+/*check if in cache.
+	If yes return 0;
+	If no, node into cache, return 1;
 */
-
 int check (struct node ** cache, long int address, int policy, int bSize, int iSize, int lines, int pre) {
 
 	if (cache == NULL) return 1;
@@ -153,54 +159,47 @@ int check (struct node ** cache, long int address, int policy, int bSize, int iS
 
 }
 
-/*method to free the nodes in the cache in a set*/
-void freeNode(struct node * ptr) {
+//converts string of decimal number into an int of cache and block size
+int toString (char * string) {
 
-
-	struct node * prev = ptr;
-
-	/*go to end of list*/
-	while(ptr!=NULL) {
-		prev = ptr;
-		ptr=ptr->next;
+	int i =0, j=0;
+	int result =0;
+	for (i=0; string[i]!='\0'; i++) {
 	}
 
-	/*free the list backwards, so not too much in stack*/
-	ptr = prev;
-	prev = ptr->prev;
-
-	while (ptr!=NULL) {
-		free(ptr);
-		ptr = prev;
-		if (ptr!=NULL) {
-			prev = ptr->prev;
-		}
+	for (j=0; j<i; j++) {
+		result = result * 10;
+		result +=  (int)(string[j]) - 48;
 	}
+
+	return result;
 
 }
 
-/*driving method for freeNode, makes sure each set in the cache is hit*/
-
-void freeAll(struct node ** cache, int size) {
-
-	if (cache==NULL) return;
+//takes a number and then returns its base 2. Returns -1 if not a power of 2 
+int baseTwo (int num) {
 
 	int i=0;
 
-	for (i=0; i<size; i++) {
-		freeNode(cache[i]);
+	while (num>1) {
+		if (num%2!=0) return -1;
+		num = num/2;
+		i++;
 	}
 
-	free(cache);
 
-
+	return i;
 }
+
+
 
 
 
 
 int main (int argc, char ** argv) {
 
+	int bSize=0, bPower = 0, cSize=0, cPower =0, i=0, j=0, size=0;
+	int type, policy, numSets, lines; 
 
 	if (argc!=6) {
 		printf("Error: invalid number or arguments.");
@@ -210,15 +209,14 @@ int main (int argc, char ** argv) {
 	
 
 
-	int cSize=0, cPower =0, i=0, j=0, size=0;;
-	int type; /* 0 for direct, 1 for full assoc, and n for assoc:n*/
-	int policy; /* 1 for fifo, 2 for LRU*/
-	int bSize=0, bPower = 0;
-	int numSets, lines;
 
-	for (size=0; argv[5][size]!='\0'; size++) {
-	}size++;
 
+	while (argv[5][size]!='\0'){
+		size++;
+	}
+	size+=1;
+
+	
 	char * filename = (char *)malloc(sizeof(char *) * size);
 	strcpy(filename, argv[5]);
 
@@ -227,25 +225,24 @@ int main (int argc, char ** argv) {
 	if (!fp) return 1;
 
 
-	/*checks cache size and to make sure it is power of 2*/
+	//if power of 2
 	cSize = toString(argv[1]);
-	cPower = logTwo(cSize);
+	cPower = baseTwo(cSize);
 	if (cPower == -1) return 1;
 
-	/*checks block size and to make sure it is a power of 2*/
+	//if power of 2
 	bSize = toString(argv[4]);
-	bPower = logTwo(bSize);
+	bPower = baseTwo(bSize);
 	if (bPower == -1) return 1;
 
-
-	/*figures out the replacement policy*/
+	//policy
 	if (strcmp("fifo", argv[3])==0) {
 		policy =1;
 	} else {
 		policy=2;
 	}
 
-	/*figures out the type (direct/assoc)*/
+	//type
 	for (i=0; argv[2][i]!='\0'; i++) {}
 	if (i==6) {
 		type=0;
@@ -264,45 +261,48 @@ int main (int argc, char ** argv) {
 		temp[j-6] = '\0';
 		type = toString(temp);
 		free(temp);
-		if (logTwo(type)==-1) return -1;
+		if (baseTwo(type)==-1) return -1;
 
 		numSets = cSize/(bSize * type);
 		lines = type;
 	}
 
-	/*int pIndex = logTwo(numSets);*/
 
 	
 
-	/*initializes all of the sets to have a null item at the beginning*/
+
 	struct node ** regular = (struct node **) malloc (sizeof(struct node *) * numSets);
 	struct node ** prefetch = (struct node **) malloc (sizeof(struct node *) * numSets);
 	if (!regular || !prefetch) return 1;
 	for (i=0; i<numSets; i++) {
 
 		struct node * a = createNode(0, -1, NULL, NULL);
-		struct node * b = createNode(0, -1, NULL, NULL);
 		regular[i] = a;
+
+		struct node * b = createNode(0, -1, NULL, NULL);
 		prefetch[i] = b;
 
 	}
 
-	int regHits=0, regMisses =0, regReads =0, regWrites = 0;
-	int preHits =0, preMisses =0, preReads =0, preWrites =0;
-	char * meh = (char *) malloc (sizeof(char)* 100);
-	char instruction='a';
 	long int address=0;
+	int regHits=0, regMisses =0; 
+	int regReads =0, regWrites = 0;
+	int preHits =0, preMisses =0;
+	int preReads =0, preWrites =0;
+
+	char instruction=' ';
+	char * meh = (char *) malloc (sizeof(char)* 100);
 
 
 	
 
-	/*reads the file and calls the regular cache and prefetch cache*/
+	//calls cache
 	while (fscanf(fp, "%s ", meh)==1) {
 		if (strcmp("#eof", meh)==0) break;
 		if (fscanf(fp, "%c %lx", &instruction, &address)!=2) return 1;
 		
 
-		/*runs the address through the non prefetch cache*/
+		//runs address through regular
 		if (check(regular, address, policy, bSize, numSets, lines, 0)==0) {
 			regHits ++;
 			if (instruction == 'W') {
@@ -318,7 +318,7 @@ int main (int argc, char ** argv) {
 			}
 		}
 
-		/*runs it through the cache with prefetch*/
+		//runs address through prefetch
 		if (check(prefetch, address, policy, bSize, numSets, lines, 0)==0) {
 			preHits++;
 			if (instruction == 'W') {
@@ -358,8 +358,8 @@ int main (int argc, char ** argv) {
 	
 
 
-	freeAll(regular, numSets);
-	freeAll(prefetch, numSets);
+	freedom(regular, numSets);
+	freedom(prefetch, numSets);
     free(meh);
     
 	fclose(fp);
